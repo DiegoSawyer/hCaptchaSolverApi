@@ -5,12 +5,14 @@
 # If you have any issue please create a github issue or you can ask help on Discord https://discord.gg/E7FfzhZqzA
 # 
 ####
+########## Fill uid and apikey like this. ############################
 # uid="62c6bf7eb1e76d24e366" #Replace with your own UID
 # apikey="62d0243f-7107-67ee-f312-09d8f5af84f3" #Replace with your own apikey
 
 
-uid=""
-apikey=""
+
+uid="" #Replace with your own UID
+apikey="" #Replace with your own apikey
 
 api_url = 'https://free.nocaptchaai.com/api/solve'
 
@@ -42,10 +44,12 @@ options.add_argument('--disable-dev-shm-usage')
 driver = uc.Chrome(options=options, use_subprocess=True)
 
 def main():
+    driver.implicitly_wait(30)
     driver.get('https://shimuldn.github.io/hCaptchaSolverApi/demo_data/demo_sites/2/')
+    
     # driver.get('https://accounts.hcaptcha.com/demo?sitekey=72c1c641-f24b-4749-b3fd-7955dca2c651&secret=0xcc480ac03eB7723e2471c292b2B7D4544519C49B')
-    time.sleep(1)
-    WebDriverWait(driver, 2, ignored_exceptions=ElementNotVisibleException).until(
+    time.sleep(25)
+    WebDriverWait(driver, 25, ignored_exceptions=ElementNotVisibleException).until(
         EC.frame_to_be_available_and_switch_to_it(
             (By.XPATH, "//iframe[contains(@title,'checkbox')]")
         )
@@ -57,11 +61,11 @@ def main():
     WebDriverWait(driver, 15, ignored_exceptions=ElementNotVisibleException).until(
             EC.frame_to_be_available_and_switch_to_it((By.XPATH, HOOK_CHALLENGE))
         )
-    time.sleep(1)
+    time.sleep(20)
 
     def solve_hcaptcha(driver, EC):
         print("Solving hcaptcha")
-        _obj = WebDriverWait(driver, 5, ignored_exceptions=ElementNotVisibleException).until(
+        _obj = WebDriverWait(driver, 25, ignored_exceptions=ElementNotVisibleException).until(
             EC.presence_of_element_located((By.XPATH, "//h2[@class='prompt-text']"))
         )
         time.sleep(1)
@@ -80,8 +84,13 @@ def main():
             name=item.get_attribute("aria-label")
             number=int(name.replace("Challenge Image ", ""))-1
             image_style = item.find_element(By.CLASS_NAME, "image").get_attribute("style")
-            url = re.split(r'[(")]', image_style)[2]
+            try:
+                url = re.split(r'[(")]', image_style)[2]
+            except:
+                print("Error in getting image url")
+                url=""
             image_data[number]=url
+            # item.click()
 
         # Doing final formating for api by adding mandatory target data_type site_key site and images 
         data_to_send={}
@@ -101,7 +110,7 @@ def main():
         'apikey': apikey}, data = json.dumps(data_to_send))
 
         # printing the response from api server
-        # print(f'Response received from api server {r.text}')
+        print(f'Response received from api server {r.text}')
 
         if r.json()['status'] == "new":
             time.sleep(2)
@@ -111,7 +120,7 @@ def main():
                 # for item in images_div:
                 #     name=item.get_attribute("aria-label")
                 #     nn=int(name.replace("Challenge Image ", ""))-1
-                    # print(status.json()['solution'][0])
+                print(status.json())
                     # if status.json()['solution'][nn]:
                     #     time.sleep(0.05)
                     #     item.click()
@@ -131,45 +140,96 @@ def main():
                     name=item.get_attribute("aria-label")
                     nn=int(name.replace("Challenge Image ", ""))-1
                     # print(nn)
-                    if nn in sol:
+                    
+                    # print("clicking image "+str(nn))
+                    if str(nn) in sol:
+                        # item.click()
+                        
+                        print("clicking image "+str(nn))
+                        # driver.execute_script("arguments[0].click();", item)
                         item.click()
+                        time.sleep(.5)
+                    # if r.json()['solution'][str(nn)]:
+                    #     item.click()
+                    #     # driver.execute_script("arguments[0].click();", item)
+                    #     time.sleep(5)
+                        
+                    #     print("clicking image"+str(nn))
 
                 ## clicking the button
-                WebDriverWait(driver, 35, ignored_exceptions=ElementClickInterceptedException).until(
+                button=WebDriverWait(driver, 35, ignored_exceptions=ElementClickInterceptedException).until(
                         EC.element_to_be_clickable(
                             (By.XPATH, "//div[@class='button-submit button']"))
-                    ).click()
-
+                    )
+                time.sleep(1)
+                titel=button.get_property("title")
+                print(titel)
+                if(titel=="Submit Answers"):
+                    button.click()
+                elif(titel=="Next Challenge"):
+                    button.click()
+                    solve_hcaptcha(driver, EC)
+                elif(titel=="Skip Challenge"):
+                    print("Skip button")
+                else:
+                    print("button not found")
                 
 
-        else:
+        elif r.json()['status'] == "skip":
+            
             print(r.json())
+            WebDriverWait(driver, 35, ignored_exceptions=ElementClickInterceptedException).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//div[@class='refresh button']"))
+            ).click()
+            solve_hcaptcha(driver, EC)
+            return  
 
 
         
         time.sleep(20)
         # Clicking the images to solve the captcha
-        if r.json()['success']:
-            for item in images_div:
-                name=item.get_attribute("aria-label")
-                nn=int(name.replace("Challenge Image ", ""))-1
-                if r.json()['solution'][str(nn)]:
-                    time.sleep(0.05)
-                    item.click()
+        try:
+            if r.json()['success']:
+                for item in images_div:
+                    name=item.get_attribute("aria-label")
+                    nn=int(name.replace("Challenge Image ", ""))-1
+                    if r.json()['solution'][str(nn)]:
+                        item.click()
+                        # driver.execute_script("arguments[0].click();", item)
+                        time.sleep(5)
+                        
+                        print("clicking image"+str(nn))
 
 
-            time.sleep(20)
+                time.sleep(20)
+                button=WebDriverWait(driver, 35, ignored_exceptions=ElementClickInterceptedException).until(
+                    EC.element_to_be_clickable((By.XPATH, "//div[@class='button-submit button']"))
+                )
+                titel=button.get_property("title")
+                print(titel)
+                if(titel=="Submit Solution"):
+                    button.click()
+                elif(titel=="Next Challenge"):
+                    button.click()
+                    solve_hcaptcha(driver, EC)
+                elif(titel=="Skip Challenge"):
+                    print("Skip button")
+                else:
+                    print("button not found")
+        except:
             WebDriverWait(driver, 35, ignored_exceptions=ElementClickInterceptedException).until(
-                EC.element_to_be_clickable((By.XPATH, "//div[@class='button-submit button']"))
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//div[@class='refresh button']"))
             ).click()
-
+            solve_hcaptcha(driver, EC)  
         try:
             error_txt=WebDriverWait(driver, 1, 0.1).until(
                 EC.visibility_of_element_located((By.XPATH, "//div[@class='error-text']"))
             )
             print(f'error found {error_txt}')
         except:
-            pass
+            print(r.json())
 
 
         for i in range(5):
@@ -194,14 +254,16 @@ def main():
             return False
         
 
-    solve_hcaptcha(driver, EC)
+    # solve_hcaptcha(driver, EC)
 
-    # print(is_challenge_image_clickable(driver))
-    # if is_challenge_image_clickable(driver):
-    #     solve_hcaptcha(driver, EC)
-    # else:
-    #     print("All done here")
-    #     driver.close()
+    print(is_challenge_image_clickable(driver))
+    if is_challenge_image_clickable(driver):
+        solve_hcaptcha(driver, EC)
+    else:
+        print("All done here")
+        # driver.close()
 
-main()
-
+try:
+    main()
+except Exception as e:
+    print(e)
